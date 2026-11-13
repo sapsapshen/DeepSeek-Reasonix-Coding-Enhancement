@@ -1,358 +1,203 @@
 # Reasonix DeepSeek 编程能力增强实施手册
 
-> **用途：** 本文档供 AI Agent 读取并逐项执行。每步给出具体文件路径和内容，Agent 按顺序操作即可复现整套增强配置。
+> 版本 2.0.0 · 核对日期 2026-11-13。给人和 Agent 按顺序执行。文件正文以 `templates/` 为准，本手册不再复制第二份正文。
 
----
+## 1. 前提
 
-## 一、前提条件
+- 已安装 Reasonix 1.x 或 2.x。两边使用同一个 Reasonix home。
+- 本机有 Python 3.11 或更高版本。
+- 密钥放在 `<Reasonix home>/.env`：
 
-- Reasonix 已安装（桌面端或 CLI）
-- DeepSeek API Key 已配置（环境变量 `DEEPSEEK_API_KEY`）
-- 操作系统：Windows（路径使用 `%AppData%`；macOS/Linux 对应 `~/.reasonix`）
-
----
-
-## 二、核心配置文件
-
-### 2.1 编辑 `config.toml`
-
-**路径：** `%AppData%\reasonix\config.toml`
-
-**操作：** 确保以下键值存在且正确。不存在则追加到文件末尾，存在则覆盖。
-
-```toml
-config_version = 3
-default_model = "deepseek-pro"
-
-[agent]
-temperature = 0.0
-auto_plan = "on"
-memory_compiler = { enabled = true }
-reasoning_language = "zh"
-auto_plan_classifier = "deepseek-flash"
-soft_compact_ratio = 0.55
-compact_ratio = 0.78
-compact_force_ratio = 0.9
-planner_model = "deepseek-pro"
-subagent_model = "deepseek-pro"
-subagent_models = { review = "deepseek-pro", security_review = "deepseek-pro" }
-subagent_effort = "high"
-subagent_efforts = { review = "max", security_review = "max" }
-output_style = "deepseek-coding-max"
-
-[[providers]]
-name = "deepseek-pro"
-kind = "openai"
-base_url = "https://api.deepseek.com"
-model = "deepseek-v4-pro"
-api_key_env = "DEEPSEEK_API_KEY"
-context_window = 1000000
-price = { cache_hit = 0.025, input = 3, output = 6, currency = "CNY" }
-effort = "max"
-
-[[providers]]
-name = "deepseek-flash"
-kind = "openai"
-base_url = "https://api.deepseek.com"
-model = "deepseek-v4-flash"
-api_key_env = "DEEPSEEK_API_KEY"
-context_window = 1000000
-price = { cache_hit = 0.02, input = 1, output = 2, currency = "CNY" }
-effort = "high"
-
-[lsp]
-enabled = true
-
-[tools]
-bash_timeout_seconds = 300
-
-[tools.shell]
-prefer = "powershell"
-
-[sandbox]
-bash = "enforce"
-network = true
+```dotenv
+DEEPSEEK_API_KEY=sk-...
 ```
 
-**验证：** 重启 Reasonix，确认默认模型显示为 `deepseek-pro`。
+Reasonix 不会从进程环境变量、项目 `.env` 或系统钥匙串读取 provider 密钥。只在 shell 里 `export DEEPSEEK_API_KEY` 不会让当前版本发出请求。安装器不读写 `.env`，也不把密钥写进 `config.toml`。
 
----
+Reasonix home：
 
-## 三、系统角色文件
+| 系统 | 路径 |
+| --- | --- |
+| macOS / Linux | `~/.reasonix` |
+| Windows | `%APPDATA%\reasonix` |
 
-### 3.1 全局编码画像
+临时安装或测试时设置 `REASONIX_HOME`。设置之后，配置、状态和缓存都留在该目录下。
 
-**路径：** `%AppData%\reasonix\REASONIX.md`
+## 2. 检查模板
 
-**操作：** 创建或覆盖此文件，写入以下内容。
-
-```markdown
-# Global DeepSeek Coding Profile
-
-## Role
-- Focus on coding, debugging, code review, verification, and engineering delivery.
-- Reply in natural Chinese for Chinese users; keep code, commands, paths, APIs, and config names in English when clearer.
-- Prioritize correctness, maintainability, compatibility, and verifiability.
-
-## Standard Workflow
-- Use the fixed workflow: `inspect -> plan -> change -> verify -> summarize`.
-- Read the relevant code, tests, configs, logs, and failures before concluding or editing.
-- For non-trivial work, state a short plan and then execute in small verified steps.
-
-## Coding Rules
-- Prefer the smallest sufficient change; avoid unrelated refactors.
-- Reuse existing dependencies, patterns, and abstraction layers whenever practical.
-- Stay sensitive to edge cases affecting correctness, security, stability, performance, or compatibility.
-- Verify uncertain facts instead of guessing runtime state, API behavior, or tool results.
-
-## Verification
-- Run the narrowest useful validation first, then broaden validation when justified.
-- Never claim completion without verification evidence.
-- If verification is blocked, state the blocker, the unverified parts, and the residual risks.
-
-## Learning Loop
-- After each meaningful task, extract 1-3 reusable lessons.
-- Suggest durable memory only for stable, cross-task, non-sensitive rules with long-term value.
-- Do not store one-off details, temporary paths, temporary workarounds, secrets, or private data as long-term memory.
-
-## Anti-Stall
-- If the same path fails to advance twice, switch evidence sources or debugging angle.
-- Prefer reproduction, logs, tests, comparisons, and isolation experiments over repeating the same attempt.
-```
-
-### 3.2 兼容镜像
-
-**路径：** `%AppData%\reasonix\.reasonix\REASONIX.md`
-
-**操作：** 将 3.1 的文件内容完整复制到此路径（兼容不同 Runtime 对 home 目录的解析差异）。
-
-### 3.3 输出风格约束
-
-**路径：** `%AppData%\reasonix\output-styles\deepseek-coding-max.md`
-
-**操作：** 创建目录 `output-styles`（如不存在），写入以下内容。
-
-```markdown
-# DeepSeek Coding Max
-
-Use a high-discipline coding style optimized for engineering delivery.
-
-## Working Style
-- Start from evidence, not assumptions.
-- For substantial work, follow `inspect -> plan -> change -> verify -> summarize`.
-- Keep changes as small as correctness allows.
-- Prefer explicit root-cause reasoning over trial-and-error edits.
-
-## Quality Bar
-- Prioritize correctness, regression safety, clarity, maintainability, and validation.
-- Preserve surrounding conventions unless the task explicitly asks for change.
-- Check meaningful edge cases that affect users, data, stability, performance, or security.
-- Prefer solutions with a clear verification path.
-
-## Learning
-- At the end of substantial tasks, summarize root cause, fix strategy, verification evidence, and reusable lessons.
-- Promote only stable, non-sensitive, cross-task lessons into durable memory candidates.
-
-## Response Shape
-- Be concise, concrete, and action-oriented.
-- Final answers should emphasize outcome, validation, remaining risk, and lessons when relevant.
-```
-
-**验证：** 重启 Reasonix，发送一条编程任务，观察回复是否遵循 `inspect → plan → change → verify → summarize` 流程。
-
----
-
-## 四、斜杠命令
-
-### 4.1 ship 命令（高纪律编码流程）
-
-**路径：** `%AppData%\reasonix\commands\ship.md`
-
-```markdown
----
-description: High-discipline coding execution flow
-argument-hint: <task>
----
-Execute this coding task with a strict engineering workflow.
-
-Task: $ARGUMENTS
-
-Requirements:
-1. Read the relevant code, tests, configs, and logs first.
-2. For non-trivial work, state a short plan before editing.
-3. Make the smallest correct change and avoid unrelated refactors.
-4. Run targeted validation first, then widen validation only when needed.
-5. Finish with:
-   - change summary
-   - verification evidence
-   - remaining risks
-   - 1-3 reusable lessons
-
-If durable memory candidates appear, list them separately.
-```
-
-### 4.2 learn 命令
-
-**路径：** `%AppData%\reasonix\commands\learn.md`
-
-```markdown
----
-description: Extract reusable lessons from the current task
-argument-hint: [task]
----
-Extract 1-3 reusable, cross-task lessons from the current task. Focus on:
-- Root cause patterns
-- Fix strategies that worked
-- Verification approaches that caught issues
-- Anti-patterns to avoid
-
-Output each lesson as a candidate for durable memory. Do not include secrets, one-off paths, or temporary workarounds.
-```
-
-### 4.3 review-bugs 命令
-
-**路径：** `%AppData%\reasonix\commands\review-bugs.md`
-
-```markdown
----
-description: Review the current changes with a bug-finding mindset
-argument-hint: [focus-area]
----
-Review the current diff with a focus on finding bugs. For each issue found, report:
-- File and line
-- Severity (critical / high / medium / low)
-- Root cause
-- Fix suggestion
-```
-
-### 4.4 兼容镜像
-
-将以上三个文件同步复制到 `%AppData%\reasonix\.reasonix\commands\` 目录。
-
----
-
-## 五、技能安装
-
-### 5.1 前端品味技能集（taste-skill，13 个技能）
+在本仓库根目录执行。若系统里的命令名是 `python3`，下面的 `python` 换成 `python3`。
 
 ```bash
-reasonix install-capability --source https://github.com/Leonxlnx/taste-skill --kind skill
+python reasonix_profile.py --check
 ```
 
-安装后确认以下技能出现在 `/skills` 列表中：
-- `design-taste-frontend`（默认前端首选）
-- `design-taste-frontend-v1`（v2 回退）
-- `gpt-taste`
-- `high-end-visual-design`
-- `minimalist-ui`
-- `industrial-brutalist-ui`
-- `image-to-code`
-- `redesign-existing-projects`
-- `full-output-enforcement`
-- `stitch-design-taste`
-- `imagegen-frontend-web`
-- `imagegen-frontend-mobile`
-- `brandkit`
+通过时打印 `templates ok`。这一步不接触 Reasonix home。
 
-### 5.2 文案去 AI 化技能
+## 3. 预览
 
 ```bash
-reasonix install-capability --source https://github.com/blader/humanizer --kind skill
-reasonix install-capability --source https://github.com/B1lli/remove-ai-flavor-writing-skill --kind skill
+python reasonix_profile.py
 ```
 
-安装后确认：
-- `humanizer` 出现在技能列表（英文去 AI 化）
-- `remove-ai-flavor` 出现在技能列表（中文去 AI 味）
+指定目录：
 
-### 5.3 技能自动调用约定（长期记忆）
-
-**路径：** `%AppData%\reasonix\projects\<project-hash>\memory\` 下创建记忆文件。
-
-**操作：** 在 Reasonix 中执行以下自然语言指令，让 Memory Compiler 自动记录：
-
-> 记住以下约定：当任务涉及前端/UI/设计编码时，自动调用 design-taste-frontend 技能。当输出面向最终用户的中文文案时，自动调用 remove-ai-flavor 技能。英文文案则自动调用 humanizer 技能。技术文档和代码注释不需要去 AI 化。
-
-或者直接创建记忆文件（如果 Memory Compiler 不可用）：
-
-**taste-skill 自动调用：**
-```yaml
-触发条件: 前端/UI/设计编码任务
-动作: run_skill({ name: "design-taste-frontend", arguments: "<任务描述>" })
+```bash
+python reasonix_profile.py --home "$REASONIX_HOME"
 ```
 
-**去 AI 化自动调用：**
-```yaml
-触发条件: 输出面向用户的中文文字
-动作: run_skill({ name: "remove-ai-flavor", arguments: "<待处理文本>" })
+预览只打印动作和技能安装命令，不创建目录。报告里的密钥样式字符串会被打码。
 
-触发条件: 输出面向用户的英文文字
-动作: run_skill({ name: "humanizer", arguments: "<待处理文本>" })
+## 4. 写入本机配置
+
+```bash
+python reasonix_profile.py --apply
 ```
 
----
+写入这些路径：
 
-## 六、Memory Compiler v5 配置
+| 仓库模板 | Reasonix home 中的位置 |
+| --- | --- |
+| `templates/config.toml` | `config.toml` |
+| `templates/REASONIX.md` | `REASONIX.md` |
+| `templates/output-styles/deepseek-coding-max.md` | `output-styles/deepseek-coding-max.md` |
+| `templates/commands/ship.md` | `commands/ship.md` |
+| `templates/commands/learn.md` | `commands/learn.md` |
+| `templates/commands/review-bugs.md` | `commands/review-bugs.md` |
 
-### 6.1 确认已启用
+`REASONIX.md` 从 Reasonix home 作为用户级常驻指令加载，然后再加载项目里的 `REASONIX.md` / `AGENTS.md` / `CLAUDE.md`。项目文件更深，冲突时项目规则优先。本安装器不改当前项目里的指令文件。
 
-在 `config.toml` 中确认：
-```toml
-[agent]
-memory_compiler = { enabled = true }
+v1.8.1 之后不再需要把同一份文件复制到 `<home>/.reasonix/`。那个嵌套目录不是文档中的加载路径，本版本停止写入它。
+
+已有文件的规则：
+
+- `config.toml` 不存在：原样复制模板，注释保留。
+- `config.toml` 已存在且能解析：先备份为 `config.toml.bak`，再更新托管键。其他 provider、未知键、已有 `api_key` 保留。名为 `deepseek` 的 provider 整段换成模板。
+- `config.toml` 解析失败：报错并保持原字节。
+- Markdown 带有 `reasonix-coding-profile` 标记：更新到当前模板。
+- Markdown 没有标记：跳过。确认要替换时加 `--force`。
+- 再次执行且内容已一致：不写新备份。
+
+托管键包括 `default_model`、`[agent]` 里的温度、推理语言、压缩比例、规划模型、子代理模型与 effort、`output_style`，以及 bash 超时、`tools.shell.prefer`、`sandbox.bash` 和 `sandbox.network`。
+
+当前模板的要点：
+
+- `default_model = "deepseek/deepseek-v4-pro"`
+- provider 名 `deepseek`，`kind = "openai"`，`base_url = "https://api.deepseek.com"`
+- `models = ["deepseek-flash", "deepseek-v4-pro"]`
+- `vision_models` 只有 `deepseek-flash`。Pro 收到图片后不会描述图片，列进视觉模型会让图片被静默丢掉
+- `effort = "max"`
+- `compact_ratio = 0.85`。2026-06 的 `soft_compact_ratio` 和 `compact_force_ratio` 不再写入；当前文档把 `compact_ratio` 当作自动压缩的触发比例
+- `tools.shell.prefer = "auto"`。2026-06 手册把所有系统都写成 PowerShell，会让 macOS 和 Linux 偏离本机 shell
+- `bash_timeout_seconds = 300`
+- 不写 `prices`、`config_version`、`[lsp]`、`auto_plan`、`memory_compiler`
+
+官方规范同时给出 Anthropic Messages 路线：`kind = "anthropic"`，`base_url = "https://api.deepseek.com/anthropic"`。模板跟随仓库里的 `reasonix.example.toml`，使用 OpenAI 兼容路线。两条路线都指向同一套模型 ID。
+
+`subagent_models` 同时写了 `security-review` 和 `security_review`。内置技能名是带连字符的 `security-review`，旧文档和规范示例里出现过下划线形式。两份键都指向 `deepseek/deepseek-v4-pro`，effort 都是 `max`。
+
+## 5. 写入密钥后的人工确认
+
+编辑 `<Reasonix home>/.env`，保存 `DEEPSEEK_API_KEY`。文件权限按本机习惯收紧。然后重启 Reasonix，或新开一个会话。
+
+确认：
+
+1. 默认模型是 `deepseek/deepseek-v4-pro`。
+2. `/effort` 能看到 DeepSeek 的 `high` 与 `max`。
+3. 斜杠命令 `/ship`、`/learn`、`/review-bugs` 出现在命令列表中。
+4. `/memory instructions` 能看到 home 里的 `REASONIX.md`。
+
+## 6. 安装外部技能
+
+Reasonix 扫描 `<Reasonix home>/skills/<name>/SKILL.md`，也扫描 `npx skills add ... -a reasonix` 落到的 `.reasonix/skills`、`.agents/skills` 等目录。2026-06 的 `reasonix install-capability --source ... --kind skill` 不是当前文档中的命令。会话里的内置技能名叫 `install-capability`，它通过 `install_source` 做安装计划。下面的命令是现在跨 Agent 的安装方式。
+
+先装默认前端技能：
+
+```bash
+npx skills add https://github.com/Leonxlnx/taste-skill --skill design-taste-frontend -a reasonix
 ```
 
-### 6.2 验证记忆图谱工作
+`design-taste-frontend` 是 taste-skill 仓库里保留的唯一技能，版本线已到 v2。旧的分项搬到了独立仓库，安装名不变。
 
-发送一条编程任务，完成后检查以下目录是否生成了轨迹文件：
-
+```bash
+npx skills add https://github.com/Leonxlnx/taste-skill-classics --skill high-end-visual-design -a reasonix
+npx skills add https://github.com/Leonxlnx/taste-skill-classics --skill minimalist-ui -a reasonix
+npx skills add https://github.com/Leonxlnx/taste-skill-classics --skill industrial-brutalist-ui -a reasonix
+npx skills add https://github.com/Leonxlnx/taste-skill-classics --skill gpt-taste -a reasonix
+npx skills add https://github.com/Leonxlnx/taste-skill-classics --skill stitch-design-taste -a reasonix
+npx skills add https://github.com/Leonxlnx/taste-skill-classics --skill design-taste-frontend-v1 -a reasonix
 ```
-%AppData%\reasonix\projects\<project-hash>\memory\compiler\
-  ├── state.json
-  ├── traces.jsonl
-  └── learning_traces.jsonl
+
+这些 classic 技能的上游 frontmatter 带有 `disable-model-invocation: true`。当前 Reasonix 会遵守该字段：模型不能自动调用，用户仍可用 `/技能名` 调用。需要某个风格时显式点名。
+
+图像与品牌技能：
+
+```bash
+npx skills add https://github.com/Leonxlnx/imagegen-skills --skill imagegen-frontend-web -a reasonix
+npx skills add https://github.com/Leonxlnx/imagegen-skills --skill imagegen-frontend-mobile -a reasonix
+npx skills add https://github.com/Leonxlnx/imagegen-skills --skill brandkit -a reasonix
+npx skills add https://github.com/Leonxlnx/imagegen-skills --skill image-to-code -a reasonix
 ```
 
-`state.json` 应包含 HIGH_SIGNAL 记忆节点，`traces.jsonl` 应包含策略选择记录（含 selected_strategy、outcome、quality_score 等字段）。
+文案：
 
----
+```bash
+npx skills add https://github.com/blader/humanizer --skill humanizer -a reasonix
+npx skills add https://github.com/b1lli/remove-ai-flavor-writing-skill --skill remove-ai-flavor -a reasonix
+```
 
-## 七、完整文件清单
+`humanizer` 处理英文。`remove-ai-flavor` 处理面向读者的中文。代码、命令、配置名和 API 文档保持原样。
 
-实施完成后，以下文件应全部就位：
+不再单独安装的旧名字：
 
-| # | 文件 | 类型 |
-|---|------|------|
-| 1 | `%AppData%\reasonix\config.toml` | 配置 |
-| 2 | `%AppData%\reasonix\REASONIX.md` | 角色注入 |
-| 3 | `%AppData%\reasonix\.reasonix\REASONIX.md` | 兼容镜像 |
-| 4 | `%AppData%\reasonix\output-styles\deepseek-coding-max.md` | 输出风格 |
-| 5 | `%AppData%\reasonix\.reasonix\output-styles\deepseek-coding-max.md` | 兼容镜像 |
-| 6 | `%AppData%\reasonix\commands\ship.md` | 命令 |
-| 7 | `%AppData%\reasonix\commands\learn.md` | 命令 |
-| 8 | `%AppData%\reasonix\commands\review-bugs.md` | 命令 |
-| 9 | `%AppData%\reasonix\.reasonix\commands\ship.md` | 兼容镜像 |
-| 10 | `%AppData%\reasonix\.reasonix\commands\learn.md` | 兼容镜像 |
-| 11 | `%AppData%\reasonix\.reasonix\commands\review-bugs.md` | 兼容镜像 |
-| 12 | `%AppData%\reasonix\skills\humanizer\SKILL.md` | 技能 |
-| 13 | `%AppData%\reasonix\skills\remove-ai-flavor\SKILL.md` | 技能 |
-| 14 | `%AppData%\reasonix\skills\design-taste-frontend\SKILL.md` | 技能 |
-| 15 | `%AppData%\reasonix\skills\*` (其余 12 个 taste-skill) | 技能 |
-| 16 | `%AppData%\reasonix\projects\<hash>\memory\compiler\state.json` | 记忆 |
-| 17 | `%AppData%\reasonix\projects\<hash>\memory\compiler\traces.jsonl` | 记忆 |
+| 旧技能 | 现状 |
+| --- | --- |
+| `redesign-existing-projects` | 作者已并入 `design-taste-frontend`，现有页面会在浏览器里先核对再改 |
+| `full-output-enforcement` | 作者已移除。后续项目见 <https://github.com/Leonxlnx/unlazy>，本配置不默认安装 |
 
----
+安装后执行 `/skills`，核对上述名字已经出现。内置的 `review` 和 `security-review` 不需要这组命令。
 
-## 八、效果验证
+## 7. 记忆约定
 
-逐项检查以下行为是否生效：
+Context Engine v2 把常驻规则和背景事实分开。必须每次都在上下文里的规则放在 `REASONIX.md`。可以变旧的偏好放在记忆事实里。
 
-1. **角色注入生效：** 任意编程问题，回复是否先 inspect 再给出方案？是否在完成后附验证证据？
-2. **Memory Compiler 生效：** 执行两个相关任务，第二个任务是否引用了第一个任务的经验？
-3. **技能自动调用生效：** 请求「做一个 landing page」，是否自动加载了 `design-taste-frontend`？
-4. **去 AI 化生效：** 输出中文文案时是否避免了「不是…而是…」「先…再…」「真正重要的是…」等句式？
-5. **策略选择生效：** 检查 `traces.jsonl`，是否每轮都有 `strategy_used` 字段且后续任务的选择依据从「中性先验」进化为「先前成功率」？
+全局事实、用户偏好和反馈都要人确认。Auto 和 YOLO 不会跳过这个确认。因此安装器不往 `memory/` 里写猜测格式的事实文件。
 
----
+若要把技能约定存成记忆，在 Reasonix 里明确要求保存，例如：
 
-*文档版本：1.0 · 最后更新：2026-06-26*
+> 记住这条全局反馈：前端或 UI 实现任务调用 design-taste-frontend。面向读者的中文使用 remove-ai-flavor，面向读者的英文使用 humanizer。技术文档、代码注释和 API 说明不改写文风。classic 风格技能只在被点名时调用。
+
+保存后用 `/memory` 查看 id、scope 和 revision。用 `/memory instructions` 查看常驻指令的实际加载顺序。
+
+2026-06 手册要求检查 `projects/<hash>/memory/compiler/traces.jsonl` 里的 `strategy_used`。那个目录属于已退役的 Memory Compiler v5。升级后的新任务不会因为写过 `memory_compiler = { enabled = true }` 就继续产生它。旧轨迹块仍可阅读。
+
+## 8. 生效后的行为核对
+
+1. 提一个小的编程任务。回复按 `inspect -> plan -> change -> verify -> summarize` 推进，结束时给出实际跑过的验证。
+2. 连续两个相关任务。第二个任务是否用到记忆，以 `/memory recall` 的记录为准。
+3. 要求做前端页面时，看是否加载了 `design-taste-frontend`。classic 技能被点名后才应出现。
+4. 让它改一段给读者看的中文，再看 `remove-ai-flavor` 有没有被调用。
+5. 打开一次带图的任务。图片应走 `deepseek-flash` 的视觉能力；纯文本编程任务保持 `deepseek-v4-pro`。
+6. 首次使用 provider 自带搜索时，Reasonix 会出示 DeepSeek Search 的费用确认。当前公开价格是每 1000 次成功请求 0.75 美元。不同意就保持关闭。
+
+## 9. 与 2026-06 手册的差异
+
+| 2026-06 写法 | 现在 |
+| --- | --- |
+| 两个 provider，模型 `deepseek-v4-pro` 与 `deepseek-v4-flash` | 一个 provider，模型 `deepseek-v4-pro` 与 `deepseek-flash` |
+| 人民币单价写进配置 | 不写价格，避免把过期价目冻成自定义费率 |
+| `config_version = 3` | 不代写。路径文档中的示例是 `config_version = 1`，交给 Reasonix 自己的迁移 |
+| `auto_plan` 与 Memory Compiler v5 | 升级时移除。规划用 Plan 模式；记忆用 Context Engine v2 |
+| 全部系统 `prefer = "powershell"` | `prefer = "auto"` |
+| 嵌套 `.reasonix` 镜像 | 不再复制 |
+| 14 个技能加一条 `install-capability` 命令 | 内置技能直接用；外部技能按第 6 节的新仓库安装 |
+| 策略表写「5 种」但只列出 4 条 | 快照里对得上名字的是四条，见 README |
+
+LSP 工具 `lsp_definition`、`lsp_hover`、`lsp_references`、`lsp_diagnostics` 仍在 Reasonix 工具契约中。当前示例没有 `[lsp]` 开关，所以模板不写它。
+
+## 10. 本地测试
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+测试使用临时目录，不会修改本机真实的 Reasonix home。
