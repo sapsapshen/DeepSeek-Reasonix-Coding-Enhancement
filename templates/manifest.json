@@ -1,0 +1,99 @@
+{
+  "profile_version": "2.0.0",
+  "reviewed": "2026-11-13",
+  "reasonix_docs": "https://github.com/esengine/DeepSeek-Reasonix/blob/studio/docs/SPEC.md",
+  "pricing_source": "https://api-docs.deepseek.com/quick_start/pricing/",
+  "models": {
+    "executor": "deepseek-v4-pro",
+    "provider_default": "deepseek-flash",
+    "legacy_flash_alias": "deepseek-v4-flash"
+  },
+  "pricing_usd_peak_per_million": {
+    "deepseek-v4-pro": {"cache_hit": 0.044, "cache_miss": 1.32, "output": 3.96},
+    "deepseek-flash": {"cache_hit": 0.006, "cache_miss": 0.3, "output": 1.2}
+  },
+  "retired_agent_keys": [
+    "auto_plan",
+    "auto_plan_classifier",
+    "memory_compiler",
+    "soft_compact_ratio",
+    "compact_force_ratio"
+  ],
+  "skills": [
+    {
+      "name": "design-taste-frontend",
+      "repository": "https://github.com/Leonxlnx/taste-skill",
+      "install": true
+    },
+    {
+      "name": "high-end-visual-design",
+      "repository": "https://github.com/Leonxlnx/taste-skill-classics",
+      "install": true
+    },
+    {
+      "name": "minimalist-ui",
+      "repository": "https://github.com/Leonxlnx/taste-skill-classics",
+      "install": true
+    },
+    {
+      "name": "industrial-brutalist-ui",
+      "repository": "https://github.com/Leonxlnx/taste-skill-classics",
+      "install": true
+    },
+    {
+      "name": "gpt-taste",
+      "repository": "https://github.com/Leonxlnx/taste-skill-classics",
+      "install": true
+    },
+    {
+      "name": "stitch-design-taste",
+      "repository": "https://github.com/Leonxlnx/taste-skill-classics",
+      "install": true
+    },
+    {
+      "name": "design-taste-frontend-v1",
+      "repository": "https://github.com/Leonxlnx/taste-skill-classics",
+      "install": true
+    },
+    {
+      "name": "imagegen-frontend-web",
+      "repository": "https://github.com/Leonxlnx/imagegen-skills",
+      "install": true
+    },
+    {
+      "name": "imagegen-frontend-mobile",
+      "repository": "https://github.com/Leonxlnx/imagegen-skills",
+      "install": true
+    },
+    {
+      "name": "brandkit",
+      "repository": "https://github.com/Leonxlnx/imagegen-skills",
+      "install": true
+    },
+    {
+      "name": "image-to-code",
+      "repository": "https://github.com/Leonxlnx/imagegen-skills",
+      "install": true
+    },
+    {
+      "name": "humanizer",
+      "repository": "https://github.com/blader/humanizer",
+      "install": true
+    },
+    {
+      "name": "remove-ai-flavor",
+      "repository": "https://github.com/b1lli/remove-ai-flavor-writing-skill",
+      "install": true
+    }
+  ],
+  "retired_skills": [
+    {
+      "name": "redesign-existing-projects",
+      "detail": "作者已并入 design-taste-frontend，不再单独安装。"
+    },
+    {
+      "name": "full-output-enforcement",
+      "detail": "作者已移除。后续项目见 https://github.com/Leonxlnx/unlazy ，本配置不默认安装。"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+# reasonix-coding-profile: managed
+# profile_version: 2.0.0
+# Canonical DeepSeek coding profile for Reasonix.
+# Secrets stay in <Reasonix home>/.env. This file must not contain an API key.
+# Re-applying over an existing config.toml updates only managed keys and keeps a backup.
+
+default_model = "deepseek/deepseek-v4-pro"
+
+[agent]
+temperature = 0.0
+reasoning_language = "zh"
+compact_ratio = 0.85
+planner_model = "deepseek/deepseek-v4-pro"
+subagent_model = "deepseek/deepseek-v4-pro"
+subagent_effort = "high"
+subagent_models = { review = "deepseek/deepseek-v4-pro", "security-review" = "deepseek/deepseek-v4-pro", security_review = "deepseek/deepseek-v4-pro" }
+subagent_efforts = { review = "max", "security-review" = "max", security_review = "max" }
+output_style = "deepseek-coding-max"
+
+# OpenAI-compatible route, matching reasonix.example.toml on the studio branch.
+# The spec also documents kind = "anthropic" with base_url = "https://api.deepseek.com/anthropic".
+# deepseek-flash is the current Flash id. deepseek-v4-flash is a legacy alias.
+# Prices are omitted on purpose: Reasonix freezes official list prices, and an
+# explicit price table is stored as a custom rate.
+[[providers]]
+name = "deepseek"
+kind = "openai"
+base_url = "https://api.deepseek.com"
+models = ["deepseek-flash", "deepseek-v4-pro"]
+default = "deepseek-flash"
+vision_models = ["deepseek-flash"]
+api_key_env = "DEEPSEEK_API_KEY"
+context_window = 1000000
+web_search = true
+effort = "max"
+
+[tools]
+bash_timeout_seconds = 300
+
+[tools.shell]
+prefer = "auto"
+
+[sandbox]
+bash = "enforce"
+network = true
